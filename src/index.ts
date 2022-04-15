@@ -15,7 +15,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getStorage  } from "firebase-admin/storage";
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
 
-const serviceAccount = require('./configurations/serviceAccountKey.json');
+const serviceAccount = require('./../configurations/serviceAccountKey.json');
 
 
 const port = process.env.PORT || 3001;
