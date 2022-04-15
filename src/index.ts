@@ -1,5 +1,4 @@
 import express from "express";
-import youtube from "./routes/youtube";
 
 import cors from "cors";
 import { Request } from "express";
@@ -58,8 +57,10 @@ app.use(express.json());
 app.use(cors());
 app.options("*", cors() as any);
 
-app.use("/youtube", youtube);
-
+// app.use("/youtube", youtube);
+app.get("/", (req, res) =>{
+return res.json({message: "ok"})
+})
 
 
 class TestController {
