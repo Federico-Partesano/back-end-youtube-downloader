@@ -1,6 +1,7 @@
 {
   "name": "youtube-downloader-api",
   "version": "1.0.0",
+  "resolutions": { "fs-capacitor": "3.0.0" },
   "engines": {
     "node": "16.13.2"
   },
