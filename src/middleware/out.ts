@@ -1,26 +1,29 @@
-// import { Request, Response, NextFunction } from "express";
-// import jwt from "jsonwebtoken";
-// import { typeCryptographyJwt } from "../../configurations/config";
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { db } from "..";
+import { typeCryptographyJwt } from "../config";
 
 
 
-// export const auth = (
-//   { headers: { Authorization, nickname } }: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     if(Authorization && typeof Authorization === "string" ){
-//     res.locals.token = jwt.verify(Authorization.split(' ')[1] , typeCryptographyJwt);
-//     if(!users.find(({nickname: nicknameUser}) => nickname === nicknameUser )) return res.status(401).json({ message: "Invalid nickname" }); 
-//     res.locals.nickname = nickname;
-//     } else {
-//       res.status(401).json({ message: "Invalid token" });
-//     }
-//     next();
-//   } catch (err) {
-//     res.status(401).json({ message: "Invalid token" });
-//   }
-// };
+export const auth = async(
+  { headers: { authorization, nickname } }: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if(authorization && typeof authorization === "string"){
+    res.locals.token = jwt.verify(authorization.split(' ')[1] , typeCryptographyJwt);
+    const docRef = await (await db.collection('usersYoutubeDownloader').doc(nickname as string).get()).data() as Record<'nickname' | 'password', string> & {playlist: string[]} | undefined;
+      if(!docRef) return res.status(403).json({error: "Invalid nickname!"})
+    } else {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    res.locals.nickname = nickname;
+    next();
+  } catch (err) {
+      
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
 
 

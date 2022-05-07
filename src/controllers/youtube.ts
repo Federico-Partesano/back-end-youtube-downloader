@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { API_HOST, API_KEY } from "../enviroument";
-import youtubedl from "youtube-dl-exec";
+import youtubedl, { YtResponse } from "youtube-dl-exec";
+import * as yt from 'youtube-search-without-api-key';
+
 // @ts-ignore
 import youtubedls from "youtube-dl";
 
@@ -8,9 +10,7 @@ import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 import fs from "fs";
 
 import {
-  BadMessage,
   Error,
-  ObjectReduce,
   SuccessMessage,
 } from "../models/types";
 import axios, { AxiosRequestConfig } from "axios";
@@ -42,12 +42,17 @@ async function getFFmpeg() {
 
     const checkFileName = async(name: string, filesize: number, videoId: string) => {
       let fileCreated = false;
+      let percentual = 0;
      const interval =  setInterval(async() => {
         if(await fs.existsSync(`${name}.part`)) {
           fileCreated = true;
-          const stats = fs.statSync(`${name}.part`)
-          socketConnection?.emit(`state-download-${videoId}`, {percentual: Math.floor((stats.size  / filesize) * 100) })
-          socketConnection?.broadcast.emit(`state-download-${videoId}`, {percentual: Math.floor((stats.size  / filesize) * 100) })
+          const stats = fs.statSync(`${name}.part`);
+          let newPercentual =  Math.floor((stats.size  / filesize) * 100);
+          if(percentual !== newPercentual){
+            socketConnection?.emit(`state-download-${videoId}`, {percentual: newPercentual});
+            socketConnection?.broadcast.emit(`state-download-${videoId}`, {percentual: newPercentual});
+            percentual = newPercentual;
+          }
         } else {
           if(fileCreated){
             socketConnection?.emit(`state-download-${videoId}`, {percentual:  100 })
@@ -57,13 +62,15 @@ async function getFFmpeg() {
           }
         }
 
-      }, 500)
+      }, 1000)
     }
 const tt = async(videoId: string, song: Song, idSong: string) => {
  try{
-  const getFileName: any = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {getFilename: true, format: "mp4"});
-  const format: any = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, { getFormat: true, format: "mp4"});
+   
+  const getFileName = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {getFilename: true, format: "mp4"}) as any as string;
+  const format = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, { getFormat: true, format: "mp4"})  as any as string;
   const info: any = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, { dumpJson: true ,format: "mp4"});
+
   const size = info.formats.find(({format: formatVideo}: {format: string}) => formatVideo === format )
 
   
@@ -76,6 +83,7 @@ const tt = async(videoId: string, song: Song, idSong: string) => {
     setTimeout(async() => {
     const ffmpeg = await getFFmpeg();
       const tt = await ffmpeg.FS('writeFile', `${videoId}.mp4`, await fetchFile(`${videoId}.mp4`));
+      await changeStatusSong(videoId, song, "converting");
       socketConnection?.broadcast.emit(`state-status-${videoId}`, {status:  "converting" })
       socketConnection?.emit(`state-status-${videoId}`, {status:  "converting" })
       await ffmpeg.run('-i', `${videoId}.mp4`, `${idSong}.mp3`);
@@ -92,6 +100,12 @@ const tt = async(videoId: string, song: Song, idSong: string) => {
     },500);
 
   }catch(e){
+
+      const getFileName: any = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {getFilename: true, format: "mp4"});
+    if(await fs.existsSync(`${getFileName}.part`)) {
+      fs.unlinkSync(`${getFileName}.part`);
+    }
+
     socketConnection?.broadcast.emit(`state-status-${videoId}`, {status:  "error" })
     socketConnection?.emit(`state-status-${videoId}`, {status:  "error" })
 
@@ -102,19 +116,6 @@ const tt = async(videoId: string, song: Song, idSong: string) => {
     
   }
 }
-// const [users, dispatch] = usersSelector();
-
-
-
-const options = (videoId: string): AxiosRequestConfig => ({
-  method: "GET",
-  url: "https://youtube-mp36.p.rapidapi.com/dl",
-  params: { id: videoId },
-  headers: {
-    "X-RapidAPI-Host": API_HOST,
-    "X-RapidAPI-Key": API_KEY,
-  },
-});
 export const youtubeController = {
   convertMp3: async (
     { params: { videoId }, body: {song} }: Request<{ videoId: string }, {}, {song: Song}>,
@@ -133,7 +134,18 @@ try {
     return res.json({...song, status: "ok"})
 
  } else {
+  const getDuration: any = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {getDuration: true, format: "mp4"});
+
+  const duration = getDuration.split(":");
+  if((duration.length === 2 && Number(duration[0]) > 9) || duration.length > 2){
+    return res.status(404).json({error:  "Videos over 9 minutes can't be convert!"})
+
+  }
    console.log('song', song);
+   console.log('precessing', processingFile.length);
+   if(processingFile.length > 1) return res.status(404).json({status: "Wait, the list is full"});
+ 
+   
    
    tt(videoId, song, idSong);
  }
@@ -142,7 +154,7 @@ try {
   return res.json({...song, status: "processing"});
 
 } catch(e) {
-  return res.json({error: e})
+  return res.status(404).json({error: e})
 }
 
   }, 
@@ -157,5 +169,49 @@ try {
     return res.json(resp);
 
 
+  },
+  getSongss: async (
+    {query:{term}}: Request<{},{},{},{term: string}>,
+    res: Response<Error | any | SuccessMessage>
+  ) => {
+    const videos = await yt.search(term);
+
+    return res.json(videos);
+
+
+  },
+  addFavorite: async (
+    {body:{videoId, title}}: Request<{},{},{videoId: string, title: string}>,
+    res: Response<Error | any | SuccessMessage>
+  ) => {
+    console.log('videoId', videoId);
+    
+    const nickname = res.locals.nickname;
+
+    const docRef = await (await db.collection('usersYoutubeDownloader').doc(nickname).get()).data() as Record<'nickname' | 'password', string> & {playlist: {videoId: string, title: string}[]} | undefined;
+
+    const setUser = await (await db.collection('usersYoutubeDownloader').doc(nickname));
+    const findFavorite = docRef?.playlist.find(({videoId: videoIdSong}) => videoIdSong === videoId);
+    const removeFavorite = () => {
+      return docRef!.playlist.filter(({videoId: videoIdUser}) => videoId !== videoIdUser);
+    }
+    const newTime = new Date().getTime();
+    await setUser.set({
+      playlist: findFavorite ? removeFavorite() : [ ...docRef!.playlist, {videoId, title, addedAt: newTime }],
+      nickname,
+      password: docRef!.password
+    });
+    return res.json({videoId, title, addedAt: newTime });
+  },
+  getFavorites: async (
+    req: Request,
+    res: Response<Error | any | SuccessMessage>
+  ) => {
+    const nickname = res.locals.nickname;
+
+    const docRef = await (await db.collection('usersYoutubeDownloader').doc(nickname).get()).data() as Record<'nickname' | 'password', string> & {playlist: {videoId: string, title: string}[]} | undefined;
+
+
+    return res.json(docRef!.playlist);
   }
 }

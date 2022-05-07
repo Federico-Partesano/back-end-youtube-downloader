@@ -15,7 +15,7 @@ export const formatGeneralResp = <T>(
 export const checkIfExistsFile = async (fileName: string) =>  (await myStorage.file(`mp3/${fileName}`).exists())[0];
 
 
-export const changeStatusSong = async(videoId: string, song: Song, status: "ok" | "processing") => {
+export const changeStatusSong = async(videoId: string, song: Song, status: "ok" | "processing" | "converting") => {
   const newSong = await db.collection('songs').doc(videoId);
   await newSong.set({...song,status});
 }

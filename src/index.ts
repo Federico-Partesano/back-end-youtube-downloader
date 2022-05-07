@@ -1,5 +1,6 @@
 import express from "express";
 import youtube from "./routes/youtube";
+import users from "./routes/users";
 import cors from "cors";
 import { Request } from "express";
 import {
@@ -58,6 +59,7 @@ app.use(cors());
 app.options("*", cors() as any);
 
 app.use("/youtube", youtube);
+app.use("/users", users);
 app.get("/", (req, res) =>{
 return res.json({message: "ok"})
 })
