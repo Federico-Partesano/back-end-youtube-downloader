@@ -143,9 +143,10 @@ try {
   }
    console.log('song', song);
    console.log('precessing', processingFile.length);
-   if(processingFile.length > 1) return res.status(404).json({status: "Wait, the list is full"});
+   if(processingFile.length > 1) {
+    return res.status(404).json({status: "Wait the list is full"});
  
-   
+   }
    
    tt(videoId, song, idSong);
  }
