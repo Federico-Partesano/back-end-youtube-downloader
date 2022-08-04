@@ -33,7 +33,7 @@
     "video-to-audio": "^1.0.1",
     "ws": "^8.5.0",
     "youtube-dl": "^3.5.0",
-    "youtube-dl-exec": "^2.0.9",
+    "youtube-dl-exec": "^2.1.4",
     "youtube-mp3-converter": "^1.0.3",
     "youtube-search-without-api-key": "^1.0.7",
     "yt-mp3-dl": "^1.0.1",
