@@ -33,6 +33,8 @@ export let socketConnection: socketio.Socket<DefaultEventsMap, DefaultEventsMap,
 
 const app = express();
 const server = http.createServer(app);
+app.use(cors());
+app.options("*", cors() as any);
 
 const io = new socketio.Server(server, {cors: {
   origin: "*",
@@ -50,12 +52,10 @@ const io = new socketio.Server(server, {cors: {
 
  })
 
-app.use(cors());
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.options("*", cors() as any);
 
 app.use("/youtube", youtube);
 app.use("/users", users);
